@@ -145,21 +145,18 @@ ngx_http_rewrite_status(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     rule->status_code = status_code;
 
     if (cf->args->nelts == 3) {
-        if (ngx_strncmp(value[2].data, "if=", 3) != 0
-            || ngx_strncmp(value[2].data, "if!=", 4) != 0) {
-            ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
-                "invalid parameter \"%V\"", &value[2]);
-            return NGX_CONF_ERROR;
-        }
-
         if (ngx_strncmp(value[2].data, "if=", 3) == 0) {
             s.len = value[2].len - 3;
             s.data = value[2].data + 3;
             rule->negative = 0;
-        } else {
+        } else if (ngx_strncmp(value[2].data, "if!=", 4) == 0){
             s.len = value[2].len - 4;
             s.data = value[2].data + 4;
             rule->negative = 1;
+        } else {
+            ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                "invalid parameter \"%V\"", &value[2]);
+            return NGX_CONF_ERROR;
         }
 
         ngx_memzero(&ccv, sizeof(ngx_http_compile_complex_value_t));
