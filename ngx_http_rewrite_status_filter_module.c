@@ -189,7 +189,7 @@ ngx_http_rewrite_status_header_filter(ngx_http_request_t *r)
     ngx_http_rewrite_status_conf_t  *conf;
     ngx_http_rewrite_status_rule_t  *rules;
     ngx_uint_t                       i;
-
+    ngx_str_t                        val;
     conf = ngx_http_get_module_loc_conf(r, ngx_http_rewrite_status_filter_module);
 
     if (conf->rules == NULL || conf->rules->nelts == 0) {
@@ -200,20 +200,17 @@ ngx_http_rewrite_status_header_filter(ngx_http_request_t *r)
 
     for (i = 0; i < conf->rules->nelts; i++) {
         if (rules[i].filter) {
-            ngx_str_t  val;
             if (ngx_http_complex_value(r, rules[i].filter, &val)
                     != NGX_OK) {
                 return NGX_ERROR;
             }
 
-            if ((val.len == 0 || (val.len == 1 && val.data[0] == '0'))) {
+            if (val.len == 0 || (val.len == 1 && val.data[0] == '0')) {
                 if (!rules[i].negative) {
-                    /* Skip due to filter*/
                     continue;
                 }
             } else {
                 if (rules[i].negative) {
-                    /* Skip due to negative filter*/
                     continue;
                 }
             }
