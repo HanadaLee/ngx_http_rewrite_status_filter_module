@@ -9,6 +9,7 @@ ngx_http_rewrite_status_filter_module is a filter module used to rewrite respons
 * [Status](#status)
 * [Synopsis](#synopsis)
 * [Installation](#installation)
+* [Conditional syntax](#conditional-syntax)
 * [Directives](#directives)
   * [rewrite_status](#rewrite_status)
 * [Author](#author)
@@ -26,7 +27,10 @@ server {
     server_name localhost;
 
     location / {
-        rewrite_status 404 if=$http_rsp_404_status;
+        condition rewrite_to_404 is_not_empty $http_rsp_404_status;
+        when rewrite_to_404 {
+            rewrite_status 404;
+        }
         proxy_pass http://foo.com;
     }
 }
@@ -36,15 +40,21 @@ server {
 
 To use theses modules, configure your nginx branch with `--add-module=/path/to/ngx_http_rewrite_status_filter_module`.
 
+To enable named conditions, build `ngx_condition_module` and this module statically in the same nginx configuration.
+
+# Conditional syntax
+
+Conditional syntax is selected at compile time. With `ngx_condition_module`, place `rewrite_status` inside an `http`, `server`, or `location` `when` block; `if=` and `if!=` are rejected. Without it, `when` is unavailable and the legacy `if=`/`if!=` parameters remain supported.
+
 # Directives
 
 ## rewrite_status
 
-**Syntax:** *rewrite_status status \[if=condition\];*
+**Syntax:** *rewrite_status status;*
 
 **Default:** *-*
 
-**Context:** *http, server, location*
+**Context:** *http, server, location, http when, server when, location when
 
 Rewrite response status code.
 

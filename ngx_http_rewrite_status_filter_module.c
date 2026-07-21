@@ -8,11 +8,19 @@
 #include <ngx_core.h>
 #include <ngx_http.h>
 
+#if (NGX_CONDITION)
+#include <ngx_http_condition_module.h>
+#endif
+
 
 typedef struct {
     ngx_uint_t                 status_code;
+#if (NGX_CONDITION)
+    ngx_condition_expr_id_t    expr_id;
+#else
     ngx_http_complex_value_t  *filter;
     ngx_int_t                  negative;
+#endif
 } ngx_http_rewrite_status_rule_t;
 
 
@@ -49,7 +57,13 @@ static ngx_http_module_t  ngx_http_rewrite_status_filter_module_ctx = {
 static ngx_command_t  ngx_http_rewrite_status_filter_commands[] = {
 
     { ngx_string("rewrite_status"),
-      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE12,
+      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF
+#if (NGX_CONDITION)
+                        |NGX_HTTP_MAIN_WHEN_CONF|NGX_HTTP_SRV_WHEN_CONF
+                        |NGX_HTTP_LOC_WHEN_CONF|NGX_CONF_TAKE1,
+#else
+                        |NGX_CONF_TAKE12,
+#endif
       ngx_http_rewrite_status,
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
@@ -115,8 +129,10 @@ ngx_http_rewrite_status(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     ngx_str_t                         *value;
     ngx_uint_t                         status_code;
     ngx_int_t                          n;
+#if !(NGX_CONDITION)
     ngx_str_t                          s;
     ngx_http_compile_complex_value_t   ccv;
+#endif
 
     if (rst_conf->rules == NULL) {
         rst_conf->rules = ngx_array_create(cf->pool, 4, sizeof(ngx_http_rewrite_status_rule_t));
@@ -132,6 +148,10 @@ ngx_http_rewrite_status(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
     ngx_memzero(rule, sizeof(ngx_http_rewrite_status_rule_t));
 
+#if (NGX_CONDITION)
+    rule->expr_id = ngx_condition_get_associated_expr_id(cf);
+#endif
+
     value = cf->args->elts;
 
     n = ngx_atoi(value[1].data, value[1].len);
@@ -144,6 +164,7 @@ ngx_http_rewrite_status(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     status_code = (ngx_uint_t) n;
     rule->status_code = status_code;
 
+#if !(NGX_CONDITION)
     if (cf->args->nelts == 3) {
         if (ngx_strncmp(value[2].data, "if=", 3) == 0) {
             s.len = value[2].len - 3;
@@ -178,6 +199,7 @@ ngx_http_rewrite_status(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
         rule->negative = 0;
         rule->filter = NULL;
     }
+#endif
 
     return NGX_CONF_OK;
 }
@@ -189,7 +211,9 @@ ngx_http_rewrite_status_header_filter(ngx_http_request_t *r)
     ngx_http_rewrite_status_conf_t  *conf;
     ngx_http_rewrite_status_rule_t  *rules;
     ngx_uint_t                       i;
+#if !(NGX_CONDITION)
     ngx_str_t                        val;
+#endif
     conf = ngx_http_get_module_loc_conf(r, ngx_http_rewrite_status_filter_module);
 
     if (conf->rules == NULL || conf->rules->nelts == 0) {
@@ -199,6 +223,13 @@ ngx_http_rewrite_status_header_filter(ngx_http_request_t *r)
     rules = conf->rules->elts;
 
     for (i = 0; i < conf->rules->nelts; i++) {
+#if (NGX_CONDITION)
+        if (ngx_http_condition_get_expr_result(r, rules[i].expr_id)
+            != NGX_CONDITION_EXPR_HIT)
+        {
+            continue;
+        }
+#else
         if (rules[i].filter) {
             if (ngx_http_complex_value(r, rules[i].filter, &val)
                     != NGX_OK) {
@@ -215,8 +246,9 @@ ngx_http_rewrite_status_header_filter(ngx_http_request_t *r)
                 }
             }
         }
+#endif
 
-        // rewrite status code
+        /* rewrite status code */
         r->headers_out.status = rules[i].status_code;
         r->headers_out.status_line.len = 0;
         break;
