@@ -135,7 +135,8 @@ ngx_http_rewrite_status(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 #endif
 
     if (rst_conf->rules == NULL) {
-        rst_conf->rules = ngx_array_create(cf->pool, 4, sizeof(ngx_http_rewrite_status_rule_t));
+        rst_conf->rules = ngx_array_create(
+            cf->pool, 4, sizeof(ngx_http_rewrite_status_rule_t));
         if (rst_conf->rules == NULL) {
             return NGX_CONF_ERROR;
         }
@@ -157,7 +158,7 @@ ngx_http_rewrite_status(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     n = ngx_atoi(value[1].data, value[1].len);
     if (n == NGX_ERROR || n < 100 || n > 999) {
         ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
-            "invalid status code \"%V\"", &value[1]);
+                           "invalid status code \"%V\"", &value[1]);
         return NGX_CONF_ERROR;
     }
 
@@ -170,13 +171,15 @@ ngx_http_rewrite_status(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
             s.len = value[2].len - 3;
             s.data = value[2].data + 3;
             rule->negative = 0;
-        } else if (ngx_strncmp(value[2].data, "if!=", 4) == 0){
+
+        } else if (ngx_strncmp(value[2].data, "if!=", 4) == 0) {
             s.len = value[2].len - 4;
             s.data = value[2].data + 4;
             rule->negative = 1;
+
         } else {
             ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
-                "invalid parameter \"%V\"", &value[2]);
+                               "invalid parameter \"%V\"", &value[2]);
             return NGX_CONF_ERROR;
         }
 
@@ -185,7 +188,7 @@ ngx_http_rewrite_status(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
         ccv.cf = cf;
         ccv.value = &s;
         ccv.complex_value = ngx_palloc(cf->pool,
-                                    sizeof(ngx_http_complex_value_t));
+                                       sizeof(ngx_http_complex_value_t));
         if (ccv.complex_value == NULL) {
             return NGX_CONF_ERROR;
         }
@@ -195,6 +198,7 @@ ngx_http_rewrite_status(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
         }
 
         rule->filter = ccv.complex_value;
+
     } else {
         rule->negative = 0;
         rule->filter = NULL;
@@ -214,7 +218,8 @@ ngx_http_rewrite_status_header_filter(ngx_http_request_t *r)
 #if !(NGX_CONDITION)
     ngx_str_t                        val;
 #endif
-    conf = ngx_http_get_module_loc_conf(r, ngx_http_rewrite_status_filter_module);
+    conf = ngx_http_get_module_loc_conf(r,
+                                        ngx_http_rewrite_status_filter_module);
 
     if (conf->rules == NULL || conf->rules->nelts == 0) {
         return ngx_http_next_header_filter(r);
@@ -231,8 +236,7 @@ ngx_http_rewrite_status_header_filter(ngx_http_request_t *r)
         }
 #else
         if (rules[i].filter) {
-            if (ngx_http_complex_value(r, rules[i].filter, &val)
-                    != NGX_OK) {
+            if (ngx_http_complex_value(r, rules[i].filter, &val) != NGX_OK) {
                 return NGX_ERROR;
             }
 
@@ -240,6 +244,7 @@ ngx_http_rewrite_status_header_filter(ngx_http_request_t *r)
                 if (!rules[i].negative) {
                     continue;
                 }
+
             } else {
                 if (rules[i].negative) {
                     continue;
