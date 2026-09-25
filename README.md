@@ -27,7 +27,7 @@ server {
     server_name localhost;
 
     location / {
-        condition rewrite_to_404 is_not_empty $http_rsp_404_status;
+        expr rewrite_to_404 !is_empty $http_rsp_404_status;
         when rewrite_to_404 {
             rewrite_status 404;
         }
@@ -40,11 +40,11 @@ server {
 
 To use theses modules, configure your nginx branch with `--add-module=/path/to/ngx_http_rewrite_status_filter_module`.
 
-To enable named conditions, build `ngx_condition_module` and this module statically in the same nginx configuration.
+To enable named conditions, build `ngx_expr_module` and this module statically in the same nginx configuration.
 
 # Conditional syntax
 
-Conditional syntax is selected at compile time. With `ngx_condition_module`, place `rewrite_status` inside an `http`, `server`, or `location` `when` block; `if=` and `if!=` are rejected. Without it, `when` is unavailable and the legacy `if=`/`if!=` parameters remain supported.
+Conditional syntax is selected at compile time. With `ngx_expr_module`, place `rewrite_status` inside an `http`, `server`, or `location` `when` block; `if=` and `if!=` are rejected. Without it, `when` is unavailable and the legacy `if=`/`if!=` parameters remain supported.
 
 # Directives
 
