@@ -56,7 +56,16 @@ Conditional syntax is selected at compile time. With `ngx_expr_module`, place `r
 
 **Context:** *http, server, location, http when, server when, location when
 
-Rewrite response status code.
+Rewrites the response status using the first matching rule in configuration order.
+With `ngx_expr_module`, a level with no rules or no matching `when` conditions
+falls back to the previous configuration level. An unconditional rule always
+matches. Once a rule matches, no further rule is evaluated, even if the target
+status equals the existing status.
+
+Rules inherited from a parent use the current request's expression definitions.
+Changing the status does not invoke `error_page` or replace the response body.
+Without `ngx_expr_module`, rules are inherited only when none are defined at
+the current level.
 
 # Author
 

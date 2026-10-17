@@ -24,9 +24,14 @@ typedef struct {
 } ngx_http_rewrite_status_rule_t;
 
 
-typedef struct {
+typedef struct ngx_http_rewrite_status_conf_s  ngx_http_rewrite_status_conf_t;
+
+struct ngx_http_rewrite_status_conf_s {
     ngx_array_t                *rules; /* Array of ngx_http_rewrite_status_rule_t */
-} ngx_http_rewrite_status_conf_t;
+#if (NGX_EXPR)
+    ngx_http_rewrite_status_conf_t  *parent;
+#endif
+};
 
 
 static ngx_int_t ngx_http_rewrite_status_filter_init(ngx_conf_t *cf);
@@ -112,9 +117,13 @@ ngx_http_rewrite_status_merge_conf(ngx_conf_t *cf, void *parent, void *child)
     ngx_http_rewrite_status_conf_t *prev = parent;
     ngx_http_rewrite_status_conf_t *conf = child;
 
+#if (NGX_EXPR)
+    conf->parent = prev;
+#else
     if (conf->rules == NULL) {
         conf->rules = prev->rules;
     }
+#endif
 
     return NGX_CONF_OK;
 }
@@ -221,42 +230,51 @@ ngx_http_rewrite_status_header_filter(ngx_http_request_t *r)
     conf = ngx_http_get_module_loc_conf(r,
                                         ngx_http_rewrite_status_filter_module);
 
-    if (conf->rules == NULL || conf->rules->nelts == 0) {
-        return ngx_http_next_header_filter(r);
-    }
+    do {
+        if (conf->rules) {
+            rules = conf->rules->elts;
 
-    rules = conf->rules->elts;
-
-    for (i = 0; i < conf->rules->nelts; i++) {
+            for (i = 0; i < conf->rules->nelts; i++) {
 #if (NGX_EXPR)
-        if (ngx_http_expr_get_result(r, rules[i].expr_id) != NGX_EXPR_WHEN_HIT)
-        {
-            continue;
-        }
+                if (ngx_http_expr_get_result(r, rules[i].expr_id)
+                    != NGX_EXPR_WHEN_HIT)
+                {
+                    continue;
+                }
 #else
-        if (rules[i].filter) {
-            if (ngx_http_complex_value(r, rules[i].filter, &val) != NGX_OK) {
-                return NGX_ERROR;
-            }
+                if (rules[i].filter) {
+                    if (ngx_http_complex_value(r, rules[i].filter, &val)
+                        != NGX_OK)
+                    {
+                        return NGX_ERROR;
+                    }
 
-            if (val.len == 0 || (val.len == 1 && val.data[0] == '0')) {
-                if (!rules[i].negative) {
-                    continue;
-                }
+                    if (val.len == 0 || (val.len == 1 && val.data[0] == '0')) {
+                        if (!rules[i].negative) {
+                            continue;
+                        }
 
-            } else {
-                if (rules[i].negative) {
-                    continue;
+                    } else {
+                        if (rules[i].negative) {
+                            continue;
+                        }
+                    }
                 }
-            }
-        }
 #endif
 
-        /* rewrite status code */
-        r->headers_out.status = rules[i].status_code;
-        r->headers_out.status_line.len = 0;
-        break;
-    }
+                /* rewrite status code */
+                r->headers_out.status = rules[i].status_code;
+                r->headers_out.status_line.len = 0;
+                return ngx_http_next_header_filter(r);
+            }
+        }
+
+#if (NGX_EXPR)
+        conf = conf->parent;
+#else
+        conf = NULL;
+#endif
+    } while (conf);
 
     return ngx_http_next_header_filter(r);
 }
